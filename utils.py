@@ -21,7 +21,7 @@ class MultiHeadAttention(nn.Module):
         self.qkv = nn.Linear(config.n_emb, 3 * config.n_emb)
         self.proj = nn.Linear(config.n_emb, config.n_emb)
         self.dropout = nn.Dropout(config.dropout)
-        self.register_buffer("causal_mask", mx.tril(mx.ones((config.ctx_len, config.ctx_len))))
+        self.causal_mask = mx.tril(mx.ones((config.ctx_len, config.ctx_len)))
     
     def forward(self, x):
         B, T, C = x.shape
@@ -77,6 +77,6 @@ class GPT(nn.Module):
         pos_emb = self.pos_emb(mx.arange(T))
         x = self.dropout(tok_emb + pos_emb)
         for block in self.blocks:
-            x = block(x)
+            x = block.forward(x)  # Fixed: Use block.forward(x) instead of block(x)
         x = self.ln_f(x)
         return self.head(x)
