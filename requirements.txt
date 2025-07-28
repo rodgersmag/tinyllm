@@ -1,6 +1,7 @@
 torch
 transformers
 datasets
-sentencepiece
+sentencepiece==0.2.0
 accelerate
 bitsandbytes
+tensorboard

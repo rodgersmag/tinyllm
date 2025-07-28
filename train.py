@@ -13,22 +13,19 @@ def main():
     dataset = get_dataset(config.DATASET_NAME, config.DATASET_CONFIG_NAME)
     tokenizer = get_tokenizer(config.MODEL_NAME)
 
-    train_stories = [item[config.TEXT_COLUMN] for item in dataset['train']]
-    validation_stories = [item[config.TEXT_COLUMN] for item in dataset['validation']]
-
-    train_dataset = TinyStoriesDataset(train_stories, tokenizer)
-    validation_dataset = TinyStoriesDataset(validation_stories, tokenizer)
+    # Use preprocessed datasets directly
+    train_dataset = dataset['train']
+    validation_dataset = dataset['validation']
 
     # Load model
     model_config = GPT2Config(**config.MODEL_CONFIG)
     model = GPT2LMHeadModel(config=model_config)
     model.to(device)
+    model.config.loss_type = "ForCausalLMLoss"  # Explicitly set loss type
 
     # Define training arguments
     training_args = TrainingArguments(
         **config.TRAINING_ARGS,
-        # Use 'mps' for Apple Silicon GPUs
-        use_mps_device=torch.backends.mps.is_available()
     )
 
     # Initialize Trainer

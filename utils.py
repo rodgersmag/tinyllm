@@ -7,7 +7,31 @@ import config
 
 def get_dataset(dataset_name, config_name):
     """Downloads and returns the specified dataset from the Hugging Face Hub."""
-    return load_dataset(dataset_name, config_name)
+    # Check for preprocessed dataset first
+    import os
+    if os.path.exists("./data/preprocessed_dataset.pt"):
+        print("Loading preprocessed dataset...")
+        # Use safe_globals context to allow dataset class during unpickling
+        with torch.serialization.safe_globals([TinyStoriesDataset]):
+            return torch.load("./data/preprocessed_dataset.pt")
+    
+    print("Processing dataset for the first time...")
+    dataset = load_dataset(dataset_name, config_name, cache_dir="./data")
+    
+    # Tokenize and preprocess dataset
+    tokenizer = get_tokenizer(config.MODEL_NAME)
+    tokenized_dataset = {}
+    for split in dataset.keys():
+        tokenized_dataset[split] = TinyStoriesDataset(
+            [item[config.TEXT_COLUMN] for item in dataset[split]],
+            tokenizer
+        )
+    
+    # Save preprocessed dataset
+    os.makedirs("./data", exist_ok=True)
+    torch.save(tokenized_dataset, "./data/preprocessed_dataset.pt")
+    print("Dataset preprocessed and saved.")
+    return tokenized_dataset
 
 def get_tokenizer(model_name):
     """Initializes and returns the tokenizer for the specified model."""

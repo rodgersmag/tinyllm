@@ -3,7 +3,7 @@
 # Data settings
 DATASET_NAME = "roneneldan/TinyStoriesInstruct"
 DATASET_CONFIG_NAME = "default"
-TEXT_COLUMN = "story"
+TEXT_COLUMN = "text"
 
 # Model settings
 MODEL_NAME = "TinyLLM"
@@ -36,18 +36,19 @@ MODEL_CONFIG = {
 TRAINING_ARGS = {
     "output_dir": "./results/TinyLLM",
     "num_train_epochs": 3,
-    "per_device_train_batch_size": 4,
-    "per_device_eval_batch_size": 4,
+    "per_device_train_batch_size": 2,
+    "per_device_eval_batch_size": 2,
     "warmup_steps": 500,
     "weight_decay": 0.01,
     "logging_dir": "./logs",
     "logging_steps": 10,
-    "evaluation_strategy": "steps",
+    "eval_strategy": "steps",
     "eval_steps": 500,
     "save_steps": 500,
     "load_best_model_at_end": True,
     "report_to": "tensorboard",
     "push_to_hub": False,
+    "dataloader_pin_memory": False,
 }
 
 # Inference settings
