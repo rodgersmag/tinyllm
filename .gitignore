@@ -21,6 +21,7 @@ wheels/
 *.egg
 data/
 logs/
+train.txt
 
 # Virtual environments
 venv/

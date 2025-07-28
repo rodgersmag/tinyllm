@@ -1,13 +1,10 @@
-
-#### 2. `config.py`
-
 class GPTConfig:
     def __init__(self):
         self.ctx_len = 64          # Context length (reduced for memory)
         self.n_emb = 64            # Embedding size
         self.n_heads = 4           # Number of attention heads
         self.n_layers = 2          # Number of transformer layers
-        self.head_size = 64        # Head size (n_emb / n_heads)
+        self.head_size = self.n_emb // self.n_heads  # Correctly calculate head size (16)
         self.dropout = 0.1         # Dropout rate
         self.batch_size = 8        # Batch size (reduced for memory)
         self.lr = 1e-3             # Learning rate
