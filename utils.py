@@ -3,7 +3,7 @@ import mlx.nn as nn
 
 class CharTokenizer:
     def __init__(self, data):
-        self.chars = sorted(list(set("".join(data))))
+        self.chars = sorted(list(set(data)))
         self.stoi = {ch: i for i, ch in enumerate(self.chars)}
         self.itos = {i: ch for i, ch in enumerate(self.chars)}
     
@@ -13,41 +13,45 @@ class CharTokenizer:
     def decode(self, tokens):
         return "".join([self.itos[t] for t in tokens])
 
-
-
 class MultiHeadAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.n_heads = config.n_heads
         self.head_size = config.head_size
-        self.qkv = nn.Linear(config.n_emb, 3 * config.n_emb)  # Input: C, Output: 3 * C
-        self.proj = nn.Linear(config.n_emb, config.n_emb)    # Projection back to C
+        self.n_emb = config.n_emb
+        self.qkv = nn.Linear(config.n_emb, 3 * config.n_emb)
+        self.proj = nn.Linear(config.n_emb, config.n_emb)
         self.dropout = nn.Dropout(config.dropout)
-        self.causal_mask = mx.tril(mx.ones((config.ctx_len, config.ctx_len)))
+
+    def __call__(self, x):
+        return self.forward(x)
 
     def forward(self, x):
         B, T, C = x.shape
-        # Compute Q, K, V in one go
-        qkv = self.qkv(x)  # Shape: (B, T, 3 * C)
-        qkv = qkv.reshape(B, T, 3, self.n_heads, self.head_size)  # Shape: (B, T, 3, n_heads, head_size)
-        qkv = qkv.transpose(0, 2, 3, 1, 4)  # Shape: (B, 3, n_heads, T, head_size)
+        
+        # Create causal mask for current sequence length
+        causal_mask = mx.tril(mx.ones((T, T)))
+        
+        # Compute Q, K, V
+        qkv = self.qkv(x)  # (B, T, 3*C)
+        qkv = qkv.reshape(B, T, 3, self.n_heads, self.head_size)
+        qkv = qkv.transpose(0, 2, 3, 1, 4)  # (B, 3, n_heads, T, head_size)
 
-        # Split into Q, K, V
-        q = qkv[:, 0]  # (B, n_heads, T, head_size)
-        k = qkv[:, 1]  # (B, n_heads, T, head_size)
-        v = qkv[:, 2]  # (B, n_heads, T, head_size)
+        q, k, v = qkv[:, 0], qkv[:, 1], qkv[:, 2]  # Each: (B, n_heads, T, head_size)
 
-        # Compute attention scores
-        attn = (q @ k.transpose(0, 1, 3, 2)) / (self.head_size ** 0.5)  # (B, n_heads, T, T)
-        attn = attn * self.causal_mask[:T, :T]  # Apply causal mask
-        attn = nn.softmax(attn, axis=-1)        # Softmax over last dimension
-        attn = self.dropout(attn)               # Apply dropout
+        # Scaled dot-product attention
+        attn = (q @ k.transpose(0, 1, 3, 2)) * (self.head_size ** -0.5)  # (B, n_heads, T, T)
+        
+        # Apply causal mask
+        attn = mx.where(causal_mask, attn, -mx.inf)
+        attn = nn.softmax(attn, axis=-1)
+        attn = self.dropout(attn)
 
-        # Compute output
+        # Apply attention to values
         out = attn @ v  # (B, n_heads, T, head_size)
-        out = out.transpose(0, 2, 1, 3).reshape(B, T, C)  # Back to (B, T, C)
-        out = self.proj(out)  # Project back to embedding dimension
-        return out
+        out = out.transpose(0, 2, 1, 3).reshape(B, T, C)  # (B, T, C)
+        
+        return self.proj(out)
 
 class FeedForward(nn.Module):
     def __init__(self, config):
@@ -55,6 +59,9 @@ class FeedForward(nn.Module):
         self.fc1 = nn.Linear(config.n_emb, 4 * config.n_emb)
         self.fc2 = nn.Linear(4 * config.n_emb, config.n_emb)
         self.dropout = nn.Dropout(config.dropout)
+    
+    def __call__(self, x):
+        return self.forward(x)
     
     def forward(self, x):
         x = nn.gelu(self.fc1(x))
@@ -69,9 +76,13 @@ class TransformerBlock(nn.Module):
         self.ln1 = nn.LayerNorm(config.n_emb)
         self.ln2 = nn.LayerNorm(config.n_emb)
     
+    def __call__(self, x):
+        return self.forward(x)
+    
     def forward(self, x):
-        x = x + self.attn.forward(self.ln1(x))  # Fixed: Use forward method
-        x = x + self.ff.forward(self.ln2(x))    # Fixed: Use forward method
+        # Pre-norm residual connections
+        x = x + self.attn(self.ln1(x))
+        x = x + self.ff(self.ln2(x))
         return x
 
 class GPT(nn.Module):
@@ -85,12 +96,23 @@ class GPT(nn.Module):
         self.head = nn.Linear(config.n_emb, config.vocab_size)
         self.dropout = nn.Dropout(config.dropout)
     
+    def __call__(self, x):
+        return self.forward(x)
+    
     def forward(self, x):
         B, T = x.shape
-        tok_emb = self.token_emb(x)
-        pos_emb = self.pos_emb(mx.arange(T))
-        x = self.dropout(tok_emb + pos_emb)
+        
+        # Token and position embeddings
+        tok_emb = self.token_emb(x)  # (B, T, n_emb)
+        pos_emb = self.pos_emb(mx.arange(T))  # (T, n_emb)
+        x = self.dropout(tok_emb + pos_emb)  # Broadcasting: (B, T, n_emb) + (T, n_emb)
+        
+        # Apply transformer blocks
         for block in self.blocks:
-            x = block.forward(x)  # Fixed: Use block.forward(x) instead of block(x)
+            x = block(x)
+        
+        # Final layer norm and output projection
         x = self.ln_f(x)
-        return self.head(x)
+        logits = self.head(x)  # (B, T, vocab_size)
+        
+        return logits
