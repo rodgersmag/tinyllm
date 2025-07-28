@@ -1,7 +1,3 @@
-torch
-transformers
-datasets
-sentencepiece==0.2.0
-accelerate
-bitsandbytes
-tensorboard
+mlx
+numpy==2.1.1
+datasets==3.0.1

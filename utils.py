@@ -1,105 +1,82 @@
-# utils.py
-import torch
-from datasets import load_dataset
-from transformers import AutoTokenizer
-from torch.utils.data import DataLoader, Dataset
-import config
+import mlx.core as mx
+import mlx.nn as nn
 
-def get_dataset(dataset_name, config_name):
-    """Downloads and returns the specified dataset from the Hugging Face Hub."""
-    # Check for preprocessed dataset first
-    import os
-    if os.path.exists("./data/preprocessed_dataset.pt"):
-        print("Loading preprocessed dataset...")
-        # Use safe_globals context to allow dataset class during unpickling
-        with torch.serialization.safe_globals([TinyStoriesDataset]):
-            return torch.load("./data/preprocessed_dataset.pt")
+class CharTokenizer:
+    def __init__(self, data):
+        self.chars = sorted(list(set("".join(data))))
+        self.stoi = {ch: i for i, ch in enumerate(self.chars)}
+        self.itos = {i: ch for i, ch in enumerate(self.chars)}
     
-    print("Processing dataset for the first time...")
-    dataset = load_dataset(dataset_name, config_name, cache_dir="./data")
+    def encode(self, text):
+        return [self.stoi[c] for c in text]
     
-    # Tokenize and preprocess dataset
-    tokenizer = get_tokenizer(config.MODEL_NAME)
-    tokenized_dataset = {}
-    for split in dataset.keys():
-        tokenized_dataset[split] = TinyStoriesDataset(
-            [item[config.TEXT_COLUMN] for item in dataset[split]],
-            tokenizer
-        )
+    def decode(self, tokens):
+        return "".join([self.itos[t] for t in tokens])
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.n_heads = config.n_heads
+        self.head_size = config.head_size
+        self.qkv = nn.Linear(config.n_emb, 3 * config.n_emb)
+        self.proj = nn.Linear(config.n_emb, config.n_emb)
+        self.dropout = nn.Dropout(config.dropout)
+        self.register_buffer("causal_mask", mx.tril(mx.ones((config.ctx_len, config.ctx_len))))
     
-    # Save preprocessed dataset
-    os.makedirs("./data", exist_ok=True)
-    torch.save(tokenized_dataset, "./data/preprocessed_dataset.pt")
-    print("Dataset preprocessed and saved.")
-    return tokenized_dataset
+    def forward(self, x):
+        B, T, C = x.shape
+        qkv = self.qkv(x).reshape(B, T, 3, self.n_heads, self.head_size).transpose(0, 3, 1, 2)
+        q, k, v = qkv[:, :, 0], qkv[:, :, 1], qkv[:, :, 2]
+        attn = (q @ k.transpose(0, -1)) / (self.head_size ** 0.5)
+        attn = attn * self.causal_mask[:T, :T]
+        attn = nn.softmax(attn, axis=-1)
+        attn = self.dropout(attn)
+        out = attn @ v
+        out = out.transpose(0, 2, 1).reshape(B, T, C)
+        return self.proj(out)
 
-def get_tokenizer(model_name):
-    """Initializes and returns the tokenizer for the specified model."""
-    # Use the gpt2 tokenizer for our custom "TinyLLM"
-    tokenizer_name = "gpt2" if model_name == "TinyLLM" else model_name
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    tokenizer.pad_token = tokenizer.eos_token
-    return tokenizer
-
-class TinyStoriesDataset(Dataset):
-    """PyTorch Dataset for the TinyStoriesInstruct dataset."""
-    def __init__(self, stories, tokenizer, max_length=512):
-        self.stories = stories
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-
-    def __len__(self):
-        return len(self.stories)
-
-    def __getitem__(self, idx):
-        story = self.stories[idx]
-        inputs = self.tokenizer(
-            story,
-            max_length=self.max_length,
-            padding="max_length",
-            truncation=True,
-            return_tensors="pt"
-        )
-        # Squeeze to remove the batch dimension
-        inputs = {k: v.squeeze(0) for k, v in inputs.items()}
-        # The labels are the same as the input_ids
-        inputs["labels"] = inputs["input_ids"].clone()
-        return inputs
-
-def create_data_loader(dataset, batch_size, shuffle=True):
-    """Creates a DataLoader for the given dataset."""
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-
-def get_device():
-    """Returns the appropriate device (MPS, CUDA, or CPU)."""
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    elif torch.cuda.is_available():
-        return torch.device("cuda")
-    else:
-        return torch.device("cpu")
-
-if __name__ == '__main__':
-    # Example usage
-    dataset = get_dataset(config.DATASET_NAME, config.DATASET_CONFIG_NAME)
-    tokenizer = get_tokenizer(config.MODEL_NAME)
+class FeedForward(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.fc1 = nn.Linear(config.n_emb, 4 * config.n_emb)
+        self.fc2 = nn.Linear(4 * config.n_emb, config.n_emb)
+        self.dropout = nn.Dropout(config.dropout)
     
-    train_stories = [item[config.TEXT_COLUMN] for item in dataset['train']]
-    validation_stories = [item[config.TEXT_COLUMN] for item in dataset['validation']]
+    def forward(self, x):
+        x = nn.gelu(self.fc1(x))
+        x = self.fc2(x)
+        return self.dropout(x)
 
-    train_dataset = TinyStoriesDataset(train_stories, tokenizer)
-    validation_dataset = TinyStoriesDataset(validation_stories, tokenizer)
+class TransformerBlock(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.attn = MultiHeadAttention(config)
+        self.ff = FeedForward(config)
+        self.ln1 = nn.LayerNorm(config.n_emb)
+        self.ln2 = nn.LayerNorm(config.n_emb)
+    
+    def forward(self, x):
+        x = x + self.attn(self.ln1(x))
+        x = x + self.ff(self.ln2(x))
+        return x
 
-    train_loader = create_data_loader(train_dataset, batch_size=config.TRAINING_ARGS['per_device_train_batch_size'])
-    validation_loader = create_data_loader(validation_dataset, batch_size=config.TRAINING_ARGS['per_device_eval_batch_size'], shuffle=False)
-
-    print(f"Device: {get_device()}")
-    print(f"Number of training examples: {len(train_dataset)}")
-    print(f"Number of validation examples: {len(validation_dataset)}")
-
-    # Print a sample batch
-    for batch in train_loader:
-        print("Sample batch:")
-        print(batch['input_ids'].shape)
-        print(batch['labels'].shape)
-        break
+class GPT(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.token_emb = nn.Embedding(config.vocab_size, config.n_emb)
+        self.pos_emb = nn.Embedding(config.ctx_len, config.n_emb)
+        self.blocks = [TransformerBlock(config) for _ in range(config.n_layers)]
+        self.ln_f = nn.LayerNorm(config.n_emb)
+        self.head = nn.Linear(config.n_emb, config.vocab_size)
+        self.dropout = nn.Dropout(config.dropout)
+    
+    def forward(self, x):
+        B, T = x.shape
+        tok_emb = self.token_emb(x)
+        pos_emb = self.pos_emb(mx.arange(T))
+        x = self.dropout(tok_emb + pos_emb)
+        for block in self.blocks:
+            x = block(x)
+        x = self.ln_f(x)
+        return self.head(x)

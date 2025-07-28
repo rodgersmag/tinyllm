@@ -1,47 +1,40 @@
-# train.py
-import torch
-from transformers import GPT2LMHeadModel, GPT2Config, Trainer, TrainingArguments
-from utils import get_dataset, get_tokenizer, TinyStoriesDataset, get_device
-import config
+import mlx.core as mx
+import mlx.nn as nn
+import mlx.optimizers as optim
+from utils import GPT, CharTokenizer
+from config import GPTConfig
 
-def main():
-    # Get device
-    device = get_device()
-    print(f"Using device: {device}")
-
-    # Load dataset and tokenizer
-    dataset = get_dataset(config.DATASET_NAME, config.DATASET_CONFIG_NAME)
-    tokenizer = get_tokenizer(config.MODEL_NAME)
-
-    # Use preprocessed datasets directly
-    train_dataset = dataset['train']
-    validation_dataset = dataset['validation']
-
-    # Load model
-    model_config = GPT2Config(**config.MODEL_CONFIG)
-    model = GPT2LMHeadModel(config=model_config)
-    model.to(device)
-    model.config.loss_type = "ForCausalLMLoss"  # Explicitly set loss type
-
-    # Define training arguments
-    training_args = TrainingArguments(
-        **config.TRAINING_ARGS,
-    )
-
-    # Initialize Trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=validation_dataset,
-    )
-
-    # Start training
-    trainer.train()
-
-    # Save the final model
-    trainer.save_model("./results/TinyLLM")
-    tokenizer.save_pretrained("./results/TinyLLM")
+def get_batch(data, batch_size, ctx_len):
+    idx = mx.random.randint(0, len(data) - ctx_len - 1, (batch_size,))
+    x = mx.stack([data[i:i+ctx_len] for i in idx])
+    y = mx.stack([data[i+1:i+ctx_len+1] for i in idx])
+    return x, y
 
 if __name__ == "__main__":
-    main()
+    config = GPTConfig()
+    
+    # Load and preprocess data
+    with open("train.txt", "r") as f:
+        data = f.read()
+    tokenizer = CharTokenizer(data)
+    config.vocab_size = len(tokenizer.chars)
+    data = mx.array(tokenizer.encode(data))
+    
+    # Initialize model and optimizer
+    model = GPT(config)
+    optimizer = optim.Adam(learning_rate=config.lr)
+    
+    # Training loop
+    for epoch in range(config.num_epochs):
+        total_loss = 0
+        num_batches = (len(data) - config.ctx_len) // config.batch_size
+        for i in range(0, len(data) - config.ctx_len, config.batch_size):
+            x, y = get_batch(data, config.batch_size, config.ctx_len)
+            loss, grads = nn.value_and_grad(model, lambda m: nn.losses.cross_entropy(m(x), y))(model)
+            optimizer.update(model, grads)
+            mx.eval(model.parameters(), optimizer.state)
+            total_loss += loss.item()
+        print(f"Epoch {epoch+1}/{config.num_epochs}, Loss: {total_loss / num_batches:.4f}")
+    
+    # Save model
+    mx.savez("model.npz", **model.parameters())
