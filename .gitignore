@@ -39,3 +39,5 @@ ENV/
 
 # Environment variables
 .env
+.claude
+CLAUDE.MD
