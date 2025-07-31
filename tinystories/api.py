@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -86,19 +87,13 @@ class TinyGPT(nn.Module):
         x = self.ln_f(x)
         return self.head(x)
 
-# --- API Setup ---
-app = FastAPI(title="TinyStories GPT Inference API")
-
-# Global variables for model, tokenizer, and device
-model = None
-tokenizer = None
-device = None
-
-@app.on_event("startup")
-def load_model():
-    """Load the model and tokenizer at application startup."""
+# --- Lifespan Event Handler ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown events."""
     global model, tokenizer, device
     
+    # Startup: Load the model and tokenizer
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"API using device: {device}")
     
@@ -114,6 +109,19 @@ def load_model():
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     print(f"Model loaded from {model_path}")
+    
+    yield  # Application is running
+    
+    # Shutdown: Cleanup resources (if needed)
+    print("Shutting down API...")
+
+# --- API Setup ---
+app = FastAPI(title="TinyStories GPT Inference API", lifespan=lifespan)
+
+# Global variables for model, tokenizer, and device
+model = None
+tokenizer = None
+device = None
 
 # --- Request/Response Models ---
 class GenerationRequest(BaseModel):

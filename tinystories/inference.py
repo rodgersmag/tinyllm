@@ -125,11 +125,19 @@ def generate_text(model: nn.Module, tokenizer, device: torch.device, prompt: str
 
 def main():
     parser = argparse.ArgumentParser(description="Generate text using a trained TinyGPT model.")
-    parser.add_argument('--prompt', type=str, default="A boy and a girl in Africa", help='Starting prompt for generation.')
+    parser.add_argument('--prompt', type=str, nargs='+', default=[
+        "Once upon a time",
+        "A brave knight",
+        "In a magical forest",
+        "The friendly dragon",
+        "There was a little girl",
+        "A boy and a girl in Africa"
+    ], help='One or more starting prompts for generation.')
     parser.add_argument('--max_tokens', type=int, default=150, help='Maximum number of tokens to generate.')
     parser.add_argument('--temperature', type=float, default=0.8, help='Sampling temperature.')
     parser.add_argument('--top_k', type=int, default=50, help='Top-k sampling.')
     parser.add_argument('--model_path', type=str, default=CONFIG['MODEL_PATH'], help='Path to the saved model weights.')
+    parser.add_argument('--output_file', type=str, default='output.txt', help='File to save the generated stories.')
     args = parser.parse_args()
 
     # Setup
@@ -151,20 +159,26 @@ def main():
         print(f"Error loading model: {e}")
         return
 
-    # Generate text
-    print(f"\nPrompt: '{args.prompt}'")
-    print("-" * 40)
+    # Generate text for each prompt and save to file
+    with open(args.output_file, 'w', encoding='utf-8') as f:
+        for i, prompt in enumerate(args.prompt):
+            print(f"\nGenerating for prompt {i+1}/{len(args.prompt)}: '{prompt}'")
+            print("-" * 40)
+            
+            story = generate_text(
+                model, tokenizer, device,
+                prompt=prompt,
+                max_length=args.max_tokens,
+                temperature=args.temperature,
+                top_k=args.top_k
+            )
+            
+            print(story)
+            f.write(f"--- PROMPT: {prompt} ---\n")
+            f.write(story)
+            f.write("\n\n" + "=" * 60 + "\n\n")
     
-    story = generate_text(
-        model, tokenizer, device,
-        prompt=args.prompt,
-        max_length=args.max_tokens,
-        temperature=args.temperature,
-        top_k=args.top_k
-    )
-    
-    print(story)
-    print("\n" + "=" * 60)
+    print(f"\nAll stories saved to {args.output_file}")
 
 if __name__ == "__main__":
     main()
