@@ -31,7 +31,7 @@ We welcome contributions to this research project! To maintain consistency and e
 2.  **Development Workflow**:
     *   **GPU First**: Begin by developing and validating your model training script in a GPU-accelerated environment. We primarily use Google Colab for this, as it provides free access to T4 GPUs.
     *   **Structure for Reproducibility**: Once the model is successfully trained, structure the code into a dedicated folder for your model. This folder must include:
-        *   A `README.md` with instructions on how to set up and run your code.
+        *   A `README.md` with instructions on how to set up and run your code. Remember to include any training result images (like loss curves) in the README.
         *   A `requirements.txt` file listing all necessary dependencies.
         *   The core scripts: `train.py`, `inference.py`, and `api.py`.
 

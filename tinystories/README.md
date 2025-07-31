@@ -82,3 +82,13 @@ curl -X POST "http://localhost:8000/generate" \
   "prompt": "In a land of talking animals,"
 }'
 ```
+
+## Training Results
+
+The following plots show the training loss from a sample run:
+
+### Training Loss
+![Training Loss](training_loss.png)
+
+### Training Loss (Moving Average)
+![Training Loss Moving Average](training_loss_ma.png)
