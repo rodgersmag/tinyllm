@@ -30,6 +30,7 @@ Our roadmap includes the development of the following models:
 - [ ] Lora 
 - [ ] Qlora
 - [ ] GRPO 
+- [ ] Multimodal Model ( all file formats !)
 - [ ] Advanced Coding Model
 
 ## How to Contribute
@@ -62,6 +63,30 @@ We welcome contributions to this research project! To maintain consistency and e
 
 This structured approach ensures that every model in this repository can be easily trained, tested, and integrated by other users.
 
----
+## Getting Started
 
-A special thank you to **Google Colab** for providing the free GPU resources that make this research possible.
+### Clone the Repo:
+```bash
+git clone https://github.com/rodgersmag/tinyllm
+cd TinyLLM
+```
+
+### Set Up Environment:
+```bash
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
+```
+
+### Check Out Models:
+Explore `mlx-gpt2` and `tinystories` folders for examples.
+Follow their README.md to train or run inference.
+
+### Build Something Cool:
+Pick a model from the future list or suggest your own.
+Have fun experimenting and share your results!
+
+## Thanks
+Big shoutout to Google Colab for the free GPU power that fuels this project, and to the open-source community (especially Hugging Face) for awesome datasets and tools.
+
+
