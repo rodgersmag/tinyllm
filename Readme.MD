@@ -25,6 +25,7 @@ Our roadmap includes the development of the following models:
 - [ ] Breast Cancer and Testicular cancel detector
 - [ ] Lotto Number Generator
 - [ ] facial recognition
+- [ ] Fine tune Lamma 2 , qwen and deepseek 
 - [ ] Lora 
 - [ ] Qlora
 - [ ] GRPO 
