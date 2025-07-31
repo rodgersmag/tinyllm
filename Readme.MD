@@ -16,10 +16,16 @@ We have successfully implemented and trained the following models:
 Our roadmap includes the development of the following models:
 
 - [ ] Image Classifier
+- [ ] Image gen 
+- [ ] Music gen
 - [ ] Text-to-Speech (TTS)
 - [ ] Translation Model
 - [ ] Pose Detection
 - [ ] Lotto Number Generator
+- [ ] facial recognition
+- [ ] Lora 
+- [ ] Qlora
+- [ ] GRPO 
 - [ ] Advanced Coding Model
 
 ## How to Contribute
