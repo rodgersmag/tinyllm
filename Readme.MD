@@ -26,6 +26,7 @@ Our roadmap includes the development of the following models:
 - [ ] Lotto Number Generator
 - [ ] facial recognition
 - [ ] Fine tune Lamma 2 , qwen and deepseek 
+- [ ] reinforcement learning & reinforcement learning with Human feedback 
 - [ ] Lora 
 - [ ] Qlora
 - [ ] GRPO 
