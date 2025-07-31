@@ -41,3 +41,5 @@ ENV/
 .env
 .claude
 CLAUDE.MD
+
+*.venv

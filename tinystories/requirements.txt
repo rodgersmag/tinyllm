@@ -1,0 +1,13 @@
+# Base
+torch
+numpy
+datasets
+tiktoken
+tqdm
+matplotlib
+
+# API
+fastapi
+uvicorn[standard]
+pydantic
+python-multipart
