@@ -21,6 +21,7 @@ Our roadmap includes the development of the following models:
 - [ ] Text-to-Speech (TTS)
 - [ ] Translation Model
 - [ ] Pose Detection
+- [ ] Breast Cancer and Testicular cancel detector
 - [ ] Lotto Number Generator
 - [ ] facial recognition
 - [ ] Lora 
