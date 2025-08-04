@@ -10,6 +10,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 """
@@ -212,6 +214,10 @@ def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight
 
     model.to(device)
 
+    # Lists to track losses
+    train_losses = []
+    val_losses = []
+
     for epoch in range(epochs):
         model.train()
         total_loss = 0.0
@@ -236,6 +242,7 @@ def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight
             total_loss += loss.item()
 
         avg_train_loss = total_loss / max(1, len(train_loader))
+        train_losses.append(avg_train_loss)
 
         # Validation
         model.eval()
@@ -271,6 +278,7 @@ def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight
                 total_val_count += batch_y.size(0)
 
         avg_val_loss = total_val_loss / max(1, len(val_loader))
+        val_losses.append(avg_val_loss)
         avg_main_matches = total_main_matches / max(1, total_val_count)
         avg_star_matches = total_star_matches / max(1, total_val_count)
         avg_hamming_dist = total_hamming_distance / max(1, total_val_count)
@@ -287,6 +295,47 @@ def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight
             print("Early stopping triggered")
             break
 
+    return train_losses, val_losses
+
+
+def plot_loss_curves(train_losses, val_losses, save_dir="plots"):
+    """Plot and save training and validation loss curves."""
+    os.makedirs(save_dir, exist_ok=True)
+    
+    plt.figure(figsize=(12, 6))
+    
+    epochs = range(1, len(train_losses) + 1)
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, 'b-', label='Training Loss', linewidth=2)
+    plt.plot(epochs, val_losses, 'r-', label='Validation Loss', linewidth=2)
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    plt.subplot(1, 2, 2)
+    plt.semilogy(epochs, train_losses, 'b-', label='Training Loss', linewidth=2)
+    plt.semilogy(epochs, val_losses, 'r-', label='Validation Loss', linewidth=2)
+    plt.title('Loss Curves (Log Scale)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss (log scale)')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plot_path = os.path.join(save_dir, "training_loss_curves.png")
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Loss curves saved to {plot_path}")
+
+
+def evaluate_model(test_loader, model, save_path='best_model.pth', device='cpu'):
+    """Evaluate model on test set."""
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
+    
     # Load best model
     model.load_state_dict(torch.load(save_path, map_location=device))
 
@@ -329,6 +378,13 @@ def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight
 
     print("\nTest Set Evaluation:")
     print(f"Test Loss: {avg_test_loss:.4f} | Avg Main Matches: {avg_main_matches:.2f}/5 | Avg Star Matches: {avg_star_matches:.2f}/2 | Avg Hamming Dist: {avg_hamming_dist:.2f}")
+    
+    return {
+        "test_loss": avg_test_loss,
+        "avg_main_matches": avg_main_matches,
+        "avg_star_matches": avg_star_matches,
+        "avg_hamming_dist": avg_hamming_dist
+    }
 
 
 def parse_args():
@@ -394,7 +450,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(args.save_path), exist_ok=True)
 
     print("Starting model training (features_for_training.csv)...")
-    train_model(
+    train_losses, val_losses = train_model(
         train_loader=train_loader,
         val_loader=val_loader,
         test_loader=test_loader,
@@ -405,6 +461,12 @@ if __name__ == "__main__":
         save_path=args.save_path,
         device=device,
     )
+
+    # Plot and save loss curves
+    plot_loss_curves(train_losses, val_losses, save_dir="plots")
+
+    # Evaluate on test set
+    evaluate_model(test_loader, model, save_path=args.save_path, device=device)
 
     # Save checkpoint with scaler for inference
     torch.save(

@@ -36,6 +36,16 @@ The `statistical-analysis.py` script generates numerous plots to visualize the d
 | :---: | :---: |
 | ![Correlation Matrix](plots/19_correlation_matrix.png) | ![Moving Average](plots/21_moving_average.png) |
 
+## Training Loss Curves
+
+After training the Transformer model, the training and validation loss curves are automatically saved to the `plots/` directory. These visualizations help monitor the model's learning progress and identify potential overfitting or underfitting:
+
+| Training Loss Curves |
+| :---: |
+| ![Training Loss Curves](plots/training_loss_curves.png) |
+
+The loss curves show both linear and log-scale views to better visualize the convergence behavior during training.
+
 
 ## How to Run
 
