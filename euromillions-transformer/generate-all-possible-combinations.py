@@ -5,7 +5,7 @@ import time
 import os
 
 # Set output path to save locally (modify as needed)
-output_path = './euromillions_combinations.csv'
+output_path = './euromillions_all_possible_combinations.csv'
 
 # Function to generate combinations in batches and save to CSV
 def generate_euromillions_combinations(batch_size=100000):
