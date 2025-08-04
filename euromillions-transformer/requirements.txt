@@ -1,0 +1,10 @@
+# Core ML stack
+torch
+numpy>=1.23
+pandas>=1.5
+scikit-learn>=1.1
+
+# Optional: plotting or analysis (commented out)
+matplotlib
+seaborn
+statsmodels
