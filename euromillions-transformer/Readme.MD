@@ -1,5 +1,19 @@
 # EuroMillions Transformer
 
+## Proposed New Training Approach
+
+Since the initial training approach did not yield successful prediction results, we propose a new method that involves:
+
+1. **Pre-training on All Possible Combinations**: Generate and train on all possible EuroMillions combinations using `generate-all-possible-combinations.py`. This approach aims to expose the model to the complete probability space of the lottery.
+
+2. **Fine-tuning on Actual Winning Draws**: After pre-training, fine-tune the model on actual historical winning draws to align it with real-world patterns.
+
+3. **Evaluation**: Compare the model's ability to predict past and future wins after this two-stage training process.
+
+This method hypothesizes that exposing the model to the complete combinatorial space first might help it learn underlying patterns that are not apparent when training only on historical data.
+
+---
+
 This project is an experiment in applying a Transformer-based deep learning model to predict EuroMillions lottery numbers. It involves a full pipeline from data cleaning and extensive statistical analysis to feature engineering, model training, and performance evaluation.
 
 The primary goal was to explore the capabilities of sequence models on a dataset that is, by its nature, random. While the model did not achieve predictive success (as expected), the project serves as a comprehensive case study in data analysis, feature engineering, and applying deep learning to a time-series problem.
