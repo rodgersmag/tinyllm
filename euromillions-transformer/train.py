@@ -204,13 +204,13 @@ class EarlyStopping:
 # --- Training ---
 
 def train_model(train_loader, val_loader, test_loader, model, epochs, lr, weight_decay, save_path='best_model.pth', device='cpu'):
-    # Label smoothing to discourage exact memorization and improve generalization
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.05)
+    # Reduced label smoothing and relaxed early stopping for better convergence.
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.01)
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     # Cosine annealing for smoother LR schedule
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(10, epochs - 5))
-    # Slightly stricter early stopping to avoid overfitting
-    early_stopping = EarlyStopping(patience=8, min_delta=0.002, save_path=save_path)
+    # Relaxed early stopping to allow for more gradual improvement
+    early_stopping = EarlyStopping(patience=12, min_delta=0.001, save_path=save_path)
 
     model.to(device)
 
@@ -401,8 +401,7 @@ def parse_args():
     parser.add_argument("--num_encoder_layers", type=int, default=4)
     parser.add_argument("--num_decoder_layers", type=int, default=4)
     parser.add_argument("--dim_feedforward", type=int, default=512)
-    parser.add_argument("--dropout", type=float, default=0.3)
-    parser.add_argument("--feature_drop", type=float, default=0.1, help="Probability to randomly drop (zero) some non-temporal features per batch for regularization")
+    parser.add_argument("--dropout", type=float, default=0.1)
     return parser.parse_args()
 
 
@@ -413,17 +412,12 @@ if __name__ == "__main__":
     # Load data
     (X_train, y_train), (X_val, y_val), (X_test, y_test), scaler, feature_cols = load_and_prepare_data_csv(args.data_path)
 
-    # Lightweight feature dropout at dataset level: zero-out a random subset of non-temporal columns per epoch via DataLoader worker_init_fn
-    rng = np.random.default_rng(42)
-    def worker_init_fn(_):
-        pass  # deterministic for now; could add epoch-dependent masking
-
     train_dataset = TensorDataset(X_train, y_train)
     val_dataset = TensorDataset(X_val, y_val)
     test_dataset = TensorDataset(X_test, y_test)
 
     # Maintain chronological order (no shuffle); drop_last for train for more stable batch stats
-    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, worker_init_fn=worker_init_fn)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=False)
 
