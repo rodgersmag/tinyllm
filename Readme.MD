@@ -10,6 +10,7 @@ We have successfully implemented and trained the following models:
 
 *   **`mlx-gpt2`**: A character-level GPT-2 model implemented in MLX for Apple Silicon.
 *   **`tinystories`**: A PyTorch-based GPT model trained on the TinyStories dataset, designed for GPU training and local MPS inference.
+* **`euromillions-transformer`**: a Transformer-based deep learning model to predict EuroMillions lottery numbers.
 
 ## Future Models
 
@@ -23,7 +24,6 @@ Our roadmap includes the development of the following models:
 - [ ] Pose Detection
 - [ ] Virtual try-on Model
 - [ ] Breast Cancer and Testicular cancel detector
-- [ ] Lotto Number Generator
 - [ ] facial recognition
 - [ ] Fine tune Lamma 2 , qwen and deepseek 
 - [ ] reinforcement learning & reinforcement learning with Human feedback 
